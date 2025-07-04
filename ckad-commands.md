@@ -99,9 +99,11 @@
 
 ## Resource Management
 
-### リソースの作成
+### リソースの作成・更新
 - `kubectl apply -f manifest.yaml`
 - `kubectl create -f manifest.yaml`
+- `kubectl replace -f manifest.yaml`
+- `kubectl replace --force -f manifest.yaml`
 - `kubectl apply -f .`
 
 ### リソースの削除
