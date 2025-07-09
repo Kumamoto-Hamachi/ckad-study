@@ -1,3 +1,5 @@
+# Service例：3つのサービスタイプを比較
+# 1. ClusterIP（デフォルト）：クラスター内部からのみアクセス可能
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,15 +7,16 @@ metadata:
   labels:
     app: nginx
 spec:
-  type: ClusterIP
+  type: ClusterIP  # クラスター内部専用（デフォルト）
   selector:
-    app: nginx
+    app: nginx     # 対象のPodを選択（deployment.yamlのlabelと一致）
   ports:
-  - name: http
-    protocol: TCP
-    port: 80
-    targetPort: 80
+  - name: http     # ポート名（複数ポートがある場合に必須）
+    protocol: TCP  # プロトコル（TCP/UDP）
+    port: 80       # Serviceが公開するポート
+    targetPort: 80 # Podのコンテナポート
 ---
+# 2. NodePort：各ノードの指定ポートからアクセス可能
 apiVersion: v1
 kind: Service
 metadata:
@@ -21,16 +24,17 @@ metadata:
   labels:
     app: nginx
 spec:
-  type: NodePort
+  type: NodePort   # ノードポート経由でアクセス
   selector:
-    app: nginx
+    app: nginx     # 対象のPodを選択
   ports:
   - name: http
     protocol: TCP
-    port: 80
-    targetPort: 80
-    nodePort: 30080
+    port: 80       # Service内部ポート
+    targetPort: 80 # Podのコンテナポート
+    nodePort: 30080 # ノードの外部ポート（30000-32767の範囲）
 ---
+# 3. LoadBalancer：クラウドのロードバランサーを使用
 apiVersion: v1
 kind: Service
 metadata:
@@ -38,11 +42,11 @@ metadata:
   labels:
     app: nginx
 spec:
-  type: LoadBalancer
+  type: LoadBalancer  # クラウドLBを自動作成（AWS ELB、GCP LBなど）
   selector:
-    app: nginx
+    app: nginx        # 対象のPodを選択
   ports:
   - name: http
     protocol: TCP
-    port: 80
-    targetPort: 80
+    port: 80          # 外部からアクセスするポート
+    targetPort: 80    # Podのコンテナポート

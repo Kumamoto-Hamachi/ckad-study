@@ -1,40 +1,41 @@
+# Deployment例：ステートレスなWebサーバー（nginx）
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
   labels:
-    app: nginx
+    app: nginx  # Deploymentのラベル
 spec:
-  replicas: 3
+  replicas: 3  # 作成するPodの数
   selector:
     matchLabels:
-      app: nginx
-  template:
+      app: nginx  # 管理対象のPodを選択するラベル
+  template:  # Pod定義のテンプレート
     metadata:
       labels:
-        app: nginx
+        app: nginx  # Podに付与するラベル（selectorと一致させる）
     spec:
       containers:
       - name: nginx
-        image: nginx:1.21
+        image: nginx:1.21  # 使用するコンテナイメージ
         ports:
-        - containerPort: 80
+        - containerPort: 80  # コンテナが公開するポート
         resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
-        readinessProbe:
+          requests:  # 最小限必要なリソース
+            cpu: 100m      # 100ミリコア（0.1コア）
+            memory: 128Mi  # 128MiBメモリ
+          limits:    # 使用可能な最大リソース
+            cpu: 200m      # 200ミリコア（0.2コア）
+            memory: 256Mi  # 256MiBメモリ
+        readinessProbe:  # Podがリクエストを受け付け可能かチェック
           httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
+            path: /        # チェックするHTTPパス
+            port: 80       # チェックするポート
+          initialDelaySeconds: 5   # 最初のチェックまでの待機時間
+          periodSeconds: 10        # チェック間隔
+        livenessProbe:   # Podが生きているかチェック
           httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 15
-          periodSeconds: 20
+            path: /        # チェックするHTTPパス
+            port: 80       # チェックするポート
+          initialDelaySeconds: 15  # 最初のチェックまでの待機時間
+          periodSeconds: 20        # チェック間隔

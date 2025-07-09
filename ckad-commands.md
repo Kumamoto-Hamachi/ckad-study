@@ -148,6 +148,32 @@
 - `kubectl get networkpolicy`
 - `kubectl describe networkpolicy policy-name`
 
+## Port Forwarding
+
+### 基本的なPort Forward
+- `kubectl port-forward pod/nginx 8080:80`
+- `kubectl port-forward deployment/nginx 8080:80`
+- `kubectl port-forward service/nginx 8080:80`
+
+### 高度なPort Forward
+- `kubectl port-forward pod/nginx 8080:80 --address 0.0.0.0`
+- `kubectl port-forward pod/nginx 8080:80 &`
+- `kubectl port-forward pod/nginx :80`
+
+### 複数ポートのForward
+- `kubectl port-forward pod/nginx 8080:80 8443:443`
+- `kubectl port-forward deployment/webapp 3000:3000 8080:8080`
+
+### 特定のリソースへのPort Forward
+- `kubectl port-forward statefulset/mysql 3306:3306`
+- `kubectl port-forward replicaset/nginx-rs 8080:80`
+
+### Port Forwardの確認・停止
+- `ps aux | grep "kubectl port-forward"`
+- `kill <process-id>`
+- `jobs` (バックグラウンドジョブ確認)
+- `fg` (フォアグラウンドに戻す)
+
 ## Debugging
 
 ### リソースの詳細確認
