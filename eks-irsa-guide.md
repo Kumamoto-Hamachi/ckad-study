@@ -1,17 +1,20 @@
 # EKS IRSA Guide
 
 ## IRSA（IAM Roles for Service Accounts）とは
-EKSでKubernetes ServiceAccountにAWS IAMロールを関連付ける仕組み。PodがAWS APIを直接呼び出せるようになる。
+
+EKS で Kubernetes ServiceAccount に AWS IAM ロールを関連付ける仕組み。Pod が AWS API を直接呼び出せるようになる。
 
 ## 基本的な仕組み
-1. **OIDCプロバイダー**: EKSクラスターがOIDCプロバイダーを提供
-2. **IAMロール**: AWS側でTrust関係を設定したIAMロールを作成
-3. **ServiceAccount**: KubernetesでIAMロールARNをアノテーションで指定
-4. **Pod実行**: 自動的にAWS認証情報が注入される
 
-## Terraformでの実装
+1. **OIDC プロバイダー**: EKS クラスターが OIDC プロバイダーを提供
+2. **IAM ロール**: AWS 側で Trust 関係を設定した IAM ロールを作成
+3. **ServiceAccount**: Kubernetes で IAM ロール ARN をアノテーションで指定
+4. **Pod 実行**: 自動的に AWS 認証情報が注入される
 
-### 1. EKSクラスターのOIDCプロバイダー
+## Terraform での実装
+
+### 1. EKS クラスターの OIDC プロバイダー
+
 ```hcl
 # EKSクラスター
 resource "aws_eks_cluster" "main" {
@@ -37,7 +40,8 @@ resource "aws_iam_openid_connect_provider" "eks" {
 }
 ```
 
-### 2. ServiceAccount用IAMロール
+### 2. ServiceAccount 用 IAM ロール
+
 ```hcl
 # IAMロール
 resource "aws_iam_role" "pod_role" {
@@ -103,60 +107,56 @@ resource "aws_iam_role_policy_attachment" "pod_policy" {
 }
 ```
 
-### 3. ServiceAccountの作成
-```hcl
-# Kubernetes Provider
-provider "kubernetes" {
-  host                   = aws_eks_cluster.main.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.main.token
-}
+### 3. ServiceAccount の作成
 
-data "aws_eks_cluster_auth" "main" {
-  name = aws_eks_cluster.main.name
-}
-
-# ServiceAccount
-resource "kubernetes_service_account" "my_sa" {
-  metadata {
-    name      = "my-service-account"
-    namespace = "default"
-    annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.pod_role.arn
-    }
-  }
-}
+```yaml
+# serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-service-account
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/my-pod-role
 ```
 
-### 4. Podでの利用
-```hcl
-# Pod定義
-resource "kubernetes_pod" "my_pod" {
-  metadata {
-    name = "my-pod"
-  }
-  
-  spec {
-    service_account_name = kubernetes_service_account.my_sa.metadata[0].name
-    
-    container {
-      name  = "app"
-      image = "amazon/aws-cli"
-      command = ["sleep", "3600"]
-      
-      env {
-        name  = "AWS_REGION"
-        value = "us-west-2"
-      }
-    }
-  }
-}
+適用コマンド:
+
+```bash
+kubectl apply -f serviceaccount.yaml
+```
+
+### 4. Pod での利用
+
+```yaml
+# pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: default
+spec:
+  serviceAccountName: my-service-account
+  containers:
+    - name: app
+      image: amazon/aws-cli
+      command: ["sleep", "3600"]
+      env:
+        - name: AWS_REGION
+          value: us-west-2
+```
+
+適用コマンド:
+
+```bash
+kubectl apply -f pod.yaml
 ```
 
 ## 実用的な例
 
-### 1. S3アクセス用ServiceAccount
-```hcl
+### 1. S3 アクセス用 ServiceAccount
+
+````hcl
 # S3専用のIAMロール
 resource "aws_iam_role" "s3_access_role" {
   name = "s3-access-role"
@@ -184,7 +184,7 @@ resource "aws_iam_role" "s3_access_role" {
 # S3アクセス用ポリシー
 resource "aws_iam_policy" "s3_policy" {
   name = "s3-access-policy"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -214,20 +214,27 @@ resource "aws_s3_bucket" "my_bucket" {
   bucket = "my-app-bucket"
 }
 
-# ServiceAccount
-resource "kubernetes_service_account" "s3_sa" {
-  metadata {
-    name      = "s3-service-account"
-    namespace = "default"
-    annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.s3_access_role.arn
-    }
-  }
-}
+# S3用ServiceAccount
+```yaml
+# s3-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s3-service-account
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/s3-access-role
+````
+
+適用コマンド:
+
+```bash
+kubectl apply -f s3-serviceaccount.yaml
 ```
 
-### 2. Secrets Manager用ServiceAccount
-```hcl
+### 2. Secrets Manager 用 ServiceAccount
+
+````hcl
 # Secrets Manager用IAMロール
 resource "aws_iam_role" "secrets_role" {
   name = "secrets-manager-role"
@@ -255,7 +262,7 @@ resource "aws_iam_role" "secrets_role" {
 # Secrets Manager用ポリシー
 resource "aws_iam_policy" "secrets_policy" {
   name = "secrets-manager-policy"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -290,21 +297,28 @@ resource "aws_secretsmanager_secret_version" "app_secret" {
   })
 }
 
-# ServiceAccount
-resource "kubernetes_service_account" "secrets_sa" {
-  metadata {
-    name      = "secrets-service-account"
-    namespace = "default"
-    annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.secrets_role.arn
-    }
-  }
-}
+# Secrets Manager用ServiceAccount
+```yaml
+# secrets-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secrets-service-account
+  namespace: default
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/secrets-manager-role
+````
+
+適用コマンド:
+
+```bash
+kubectl apply -f secrets-serviceaccount.yaml
 ```
 
 ## 検証とデバッグ
 
-### 1. Pod内でのAWS認証確認
+### 1. Pod 内での AWS 認証確認
+
 ```bash
 # Pod内でAWS認証情報を確認
 kubectl exec -it my-pod -- aws sts get-caller-identity
@@ -313,7 +327,8 @@ kubectl exec -it my-pod -- aws sts get-caller-identity
 kubectl exec -it my-pod -- env | grep AWS
 ```
 
-### 2. IAMロールの動作確認
+### 2. IAM ロールの動作確認
+
 ```bash
 # S3アクセステスト
 kubectl exec -it s3-pod -- aws s3 ls s3://my-app-bucket
@@ -322,7 +337,8 @@ kubectl exec -it s3-pod -- aws s3 ls s3://my-app-bucket
 kubectl exec -it secrets-pod -- aws secretsmanager get-secret-value --secret-id my-app-secret
 ```
 
-### 3. Terraformでの出力設定
+### 3. Terraform での出力設定
+
 ```hcl
 # 出力値
 output "cluster_oidc_issuer_url" {
@@ -341,29 +357,35 @@ output "service_account_name" {
 ## ベストプラクティス
 
 ### 1. 最小権限の原則
-- 必要最小限のAWS権限のみ付与
+
+- 必要最小限の AWS 権限のみ付与
 - リソースレベルでの権限制限
 
-### 2. Namespace分離
-- 異なるアプリケーションは異なるNamespaceで実行
-- NamespaceごとにServiceAccountを分離
+### 2. Namespace 分離
+
+- 異なるアプリケーションは異なる Namespace で実行
+- Namespace ごとに ServiceAccount を分離
 
 ### 3. 監査とログ
-- CloudTrailでAPI呼び出しを監査
-- EKSコントロールプレーンのログを有効化
+
+- CloudTrail で API 呼び出しを監査
+- EKS コントロールプレーンのログを有効化
 
 ### 4. セキュリティ
-- Trust関係の条件を厳密に設定
+
+- Trust 関係の条件を厳密に設定
 - 定期的な権限の見直し
 
 ## トラブルシューティング
 
 ### よくある問題
-1. **権限エラー**: IAMポリシーが不足
-2. **認証エラー**: Trust関係の設定ミス
-3. **ServiceAccountエラー**: アノテーションの設定ミス
+
+1. **権限エラー**: IAM ポリシーが不足
+2. **認証エラー**: Trust 関係の設定ミス
+3. **ServiceAccount エラー**: アノテーションの設定ミス
 
 ### デバッグ手順
+
 ```bash
 # ServiceAccountの確認
 kubectl get sa -o yaml
@@ -376,4 +398,10 @@ kubectl exec -it pod-name -- env | grep AWS
 ```
 
 ## まとめ
-IRSAを使用することで、EKS上のPodが安全にAWS APIを利用できます。Terraformを使用することで、インフラとKubernetesリソースを一元管理できます。
+
+IRSA を使用することで、EKS 上の Pod が安全に AWS API を利用できます。Terraform を使用することで、インフラと Kubernetes リソースを一元管理できます。
+
+# 参考
+
+[Kubernetes の Role と RoleBinding でアクセス権を管理しよう｜ toshi](https://note.com/minato_kame/n/ne29b368fed24)
+[IAM Roles for Service Accounts(IRSA)の仕組みを深堀りしてみた - APC 技術ブログ](https://techblog.ap-com.co.jp/entry/irsa-deep-dive)
