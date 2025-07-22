@@ -405,3 +405,8 @@ IRSA を使用することで、EKS 上の Pod が安全に AWS API を利用で
 
 [Kubernetes の Role と RoleBinding でアクセス権を管理しよう｜ toshi](https://note.com/minato_kame/n/ne29b368fed24)
 [IAM Roles for Service Accounts(IRSA)の仕組みを深堀りしてみた - APC 技術ブログ](https://techblog.ap-com.co.jp/entry/irsa-deep-dive)
+
+> IRSA が最初にあったのですが、別の方法として EKS Pod Identity が昨年登場しました。
+> 基本的には EKS Pod Identity を使用し、EKS Pod Identity が使用できない場面では IRSA を使うことが推奨されています
+
+[EKS Pod Identity の仕組みを深堀りしてみた - APC 技術ブログ](https://techblog.ap-com.co.jp/entry/eks-pod-identity-deep-dive)
